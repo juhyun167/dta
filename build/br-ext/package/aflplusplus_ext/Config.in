@@ -1,0 +1,4 @@
+config BR2_PACKAGE_AFLPLUSPLUS_EXT
+	bool "aflplusplus"
+	help
+	  http://github.org/OP-TEE/optee_examples
