@@ -122,7 +122,7 @@ To run your own TAs outside the secure world, integrate the DTA framework into y
 
 ## Publication
 
-```bibtex
+```
 @article{song2024dta,
   title     = {DTA: Run TrustZone TAs Outside the Secure World for Security Testing},
   author    = {Song, Juhyun and Jo, Eunji and Kim, Jaehyu},
