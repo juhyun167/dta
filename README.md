@@ -18,7 +18,7 @@ DTA currently builds on **OP-TEE**, the open-source TrustZone reference implemen
 1. **Build OP-TEE for QEMU v8**
    (See OP-TEE’s docs for details: the [QEMU v8 guide](https://optee.readthedocs.io/en/latest/building/devices/qemu.html#qemu-v8))
 
-   ```bash
+   ```
    mkdir optee && cd optee
    repo init -u https://github.com/OP-TEE/manifest.git -m qemu_v8.xml
    repo sync
@@ -35,7 +35,7 @@ DTA currently builds on **OP-TEE**, the open-source TrustZone reference implemen
 4. **Enable the package in Buildroot**
    Append the following to `build/common.mk`:
 
-   ```make
+   ```
    # add below BR2_PACKAGE_KEYUTILS ?= y (near line 314)
    BR2_PACKAGE_AFLPLUSPLUS_EXT ?= y
    ```
@@ -43,14 +43,14 @@ DTA currently builds on **OP-TEE**, the open-source TrustZone reference implemen
 5. **Register the package in Config.in**
    Append to the bottom of `build/br-ext/Config.in`:
 
-   ```make
+   ```
    source "$BR2_EXTERNAL_OPTEE_PATH/package/aflplusplus_ext/Config.in"
    ```
 
 6. **Build and boot**
    (Disable ASLR in the secure world for consistency.)
 
-   ```bash
+   ```
    make run CFG_CORE_ASLR=n CFG_TA_ASLR=n
    ```
 
@@ -71,7 +71,7 @@ We use [AFL++ Frida mode](https://github.com/AFLplusplus/AFLplusplus/blob/stable
 
 Example fuzzing of `test1`:
 
-```bash
+```
 mkdir in && echo aaaa > in/aaaa
 ./afl-fuzz -O -i in -o out -D -- test1 -d
 ```
@@ -96,20 +96,20 @@ To run your own TAs outside the secure world, integrate the DTA framework into y
 
 * `host/Makefile`:
 
-  ```make
+  ```
   OBJS = main.o setup.o ditto.o syscall.o memory.o
   ```
 
 * `ta/sub.mk`:
 
-  ```make
+  ```
   srcs-y += ditto_ta.c
   srcs-y += func_extended.c
   ```
 
 * `CMakeLists.txt`:
 
-  ```cmake
+  ```
   set (SRC host/main.c host/setup.c host/ditto.c host/syscall.c host/memory.c)
   ```
 
