@@ -1,107 +1,135 @@
-# dta 
+# DTA
 
 ![gif](images/output.gif)
 
-DTA is a pluggable framework for OP-TEE TAs (Trusted Applications) that enables them to run outside the secure world. This allows for the rapid launch of TA fuzzing with state-of-the-art fuzzers during the development phase.
+**DTA** is a pluggable framework for OP-TEE Trusted Applications (TAs) that lets them run **outside** the secure world. This enables rapid TA fuzzing with state-of-the-art fuzzers during development.
 
 ## Targets
 
-DTA is designed to run trusted user-land code outside the secure world. Its main targets are:
+DTA is designed to run trusted user-land code outside the secure world. Primary targets:
 
-- [Trusted Apps](https://optee.readthedocs.io/en/latest/architecture/trusted_applications.html#pseudo-trusted-applications)
-- [Trusted App Libraries](https://optee.readthedocs.io/en/latest/architecture/libraries.html)
+* [Trusted Applications (TAs)](https://optee.readthedocs.io/en/latest/architecture/trusted_applications.html)
+* [Trusted Application Libraries](https://optee.readthedocs.io/en/latest/architecture/libraries.html)
 
 ## Getting Started
 
-DTA is currently based on OP-TEE, an open-source reference implementation of TrustZone technology. To run our demo TAs, follow these instructions:
+DTA currently builds on **OP-TEE**, the open-source TrustZone reference implementation. To run the demo TAs:
 
-1. Build the complete OP-TEE project deployed for QEMU v8. (For detailed instructions, check the OP-TEE [documentation](https://optee.readthedocs.io/en/latest/building/devices/qemu.html#qemu-v8))
+1. **Build OP-TEE for QEMU v8**
+   (See OP-TEE’s docs for details: the [QEMU v8 guide](https://optee.readthedocs.io/en/latest/building/devices/qemu.html#qemu-v8))
 
-```
-mkdir optee && cd optee
-repo init -u https://github.com/OP-TEE/manifest.git -m qemu_v8.xml
-repo sync
-cd build
-make toolchains && make run
-```
+   ```bash
+   mkdir optee && cd optee
+   repo init -u https://github.com/OP-TEE/manifest.git -m qemu_v8.xml
+   repo sync
+   cd build
+   make toolchains && make run
+   ```
 
-2. Move the demo TA source codes from `optee_examples/` to the same path in the OP-TEE project directory.
+2. **Copy demo TA sources**
+   Move the demo TA sources from `optee_examples/` into the same path within your OP-TEE project tree.
 
-3. Move the AFL++ buildroot package from `build/br-ext/package/` to the same path in the OP-TEE project directory.
+3. **Install the AFL++ Buildroot package**
+   Move the AFL++ Buildroot package from `build/br-ext/package/` into the same path within your OP-TEE project tree.
 
-4. Add the following line to `build/common.mk`.
+4. **Enable the package in Buildroot**
+   Append the following to `build/common.mk`:
 
-```
-# add this below BR2_PACKAGE_KEYUTILS ?= y (near line 314)
-BR2_PACKAGE_AFLPLUSPLUS_EXT ?= y
-```
+   ```make
+   # add below BR2_PACKAGE_KEYUTILS ?= y (near line 314)
+   BR2_PACKAGE_AFLPLUSPLUS_EXT ?= y
+   ```
 
-5. Append the following line to the bottom of `build/br-ext/Config.in`
+5. **Register the package in Config.in**
+   Append to the bottom of `build/br-ext/Config.in`:
 
-```
-source "$BR2_EXTERNAL_OPTEE_PATH/package/aflplusplus_ext/Config.in"
-```
+   ```make
+   source "$BR2_EXTERNAL_OPTEE_PATH/package/aflplusplus_ext/Config.in"
+   ```
 
-6. Make and boot the system.
+6. **Build and boot**
+   (Disable ASLR in the secure world for consistency.)
 
-```
-make run CFG_CORE_ASLR=n CFG_TA_ASLR=n
-```
+   ```bash
+   make run CFG_CORE_ASLR=n CFG_TA_ASLR=n
+   ```
 
 ### Testing TAs
 
-Three demo TAs will be installed in `/usr/bin/`.
+Three demo TAs are installed in `/usr/bin/`:
 
-- `dta_test`, `dta_test2` for testing secure world system calls.
-- `test1` for testing fuzzers.
-    - This TA panics when "abcd" is given as input.
+* `dta_test`, `dta_test2`: exercise secure-world syscalls
+* `test1`: intended for fuzzing
 
-All demo TAs require the `"-d"` argument to run outside the secure world. Without `"-d"`, they will act as normal TAs.
+  * Panics when the input is exactly `abcd`
 
-### Testing fuzzers
+All demo TAs accept `-d` to run **outside** the secure world. Without `-d`, they behave as normal TAs.
 
-We use [AFL++ Frida mode](https://github.com/AFLplusplus/AFLplusplus/blob/stable/frida_mode/README.md) for test fuzzer. The `afl-fuzz` binary is already in the `/root` directory, and we can fuzz the `test1` demo TA as follows.
+### Testing Fuzzers
 
-```
+We use [AFL++ Frida mode](https://github.com/AFLplusplus/AFLplusplus/blob/stable/frida_mode/README.md) for the demo. The `afl-fuzz` binary is available in `/root`.
+
+Example fuzzing of `test1`:
+
+```bash
 mkdir in && echo aaaa > in/aaaa
 ./afl-fuzz -O -i in -o out -D -- test1 -d
 ```
 
-## Integration with TAs
+## Integration with Your TAs
 
-If you want your TAs to run outside, you need to add and modify your project with our framework.
+To run your own TAs outside the secure world, integrate the DTA framework into your project.
 
-1. Add files from our demo TA source code to your project.
+1. **Add framework files**
 
-|files|destination|
-|---|---|
-|`ditto.*`, `memory.*`, `setup.*`, `syscall.*`|`host/`|
-|`ditto_ta.c`, `include/ditto_ta.h`, `func_extended.*`|`ta/`|
+| Files                                                 | Destination |
+| ----------------------------------------------------- | ----------- |
+| `ditto.*`, `memory.*`, `setup.*`, `syscall.*`         | `host/`     |
+| `ditto_ta.c`, `include/ditto_ta.h`, `func_extended.*` | `ta/`       |
 
-2. Apply necessary changes to your project codes.
+2. **Apply code changes**
 
-- **Host:** Call `setup()` once on init, use `ditto_invoke_command()` instead of `InvokeCommand()`. (check our `host/main.c`)
-- **TA:** Replace your entrypoint function name to `__TA_InvokeCommandEntryPoint()`, and use ours as an alternative. (check our `ta/*_ta.c`)
+* **Host**: call `setup()` once at init; use `ditto_invoke_command()` instead of `InvokeCommand()` (see `host/main.c` in the demo).
+* **TA**: rename your entry point to `__TA_InvokeCommandEntryPoint()` and use the provided implementation (see `ta/*_ta.c`).
 
-3. Add our framework codes to makefiles.
+3. **Update build files**
 
-- `host/Makefile:9`
-```
-OBJS = main.o setup.o ditto.o syscall.o memory.o
-```
-- `ta/sub.mk:3`
-```
-srcs-y += ditto_ta.c
-srcs-y += func_extended.c
-```
-- `CMakeLists:3`
-```
-set (SRC host/main.c host/setup.c host/ditto.c host/syscall.c host/memory.c)
-```
+* `host/Makefile`:
 
-There are a few more subtle changes required for integration, such as adding `#include`s for our header files. Please also check our demo TA project codes, since they all originated from official examples of OP-TEE.
+  ```make
+  OBJS = main.o setup.o ditto.o syscall.o memory.o
+  ```
+
+* `ta/sub.mk`:
+
+  ```make
+  srcs-y += ditto_ta.c
+  srcs-y += func_extended.c
+  ```
+
+* `CMakeLists.txt`:
+
+  ```cmake
+  set (SRC host/main.c host/setup.c host/ditto.c host/syscall.c host/memory.c)
+  ```
+
+> There are a few additional, straightforward changes (e.g., adding `#include` directives for DTA headers). Refer to the demo TA sources, which are adapted from OP-TEE’s official examples.
 
 ## Troubleshooting
 
-- **TA initialization does not work.**
-    - We use `CFG_CORE_ASLR=n`, `CFG_TA_ASLR=n` to disable ASLR in the secure world. However, some environments may load TAs at a different address than we use. In that case, check the base address in the secure world console and manually change the value of `ta_code_addr` in `host/setup.c`.
+* **TA initialization fails**
+  We use `CFG_CORE_ASLR=n` and `CFG_TA_ASLR=n` to disable secure-world ASLR. Some environments may still place TAs at different base addresses. Check the secure-world console for the loaded TA base and update `ta_code_addr` in `host/setup.c` accordingly.
+
+## Publication
+
+```bibtex
+@article{song2024dta,
+  title     = {DTA: Run TrustZone TAs Outside the Secure World for Security Testing},
+  author    = {Song, Juhyun and Jo, Eunji and Kim, Jaehyu},
+  journal   = {IEEE Access},
+  volume    = {12},
+  pages     = {16715--16727},
+  year      = {2024},
+  publisher = {IEEE}
+}
+```
